@@ -21,60 +21,65 @@ namespace AdamsPuzzle_Anagram
             }
 
 
-            Dictionary<string, List<string>> workingDictionaryOfAllWords = totallyAllWordsInTheEnglishDictionary
-                .ToDictionary(word => word, word => word.Select(c => c.ToString().ToLower()).ToList());
+            //Dictionary<string, List<string>> workingDictionaryOfAllWords = totallyAllWordsInTheEnglishDictionary
+            //    .ToDictionary(word => word, word => word.Select(c => c.ToString().ToLower()).ToList());
 
-            List<List<string>> listOfAnagrams = new List<List<string>>();
+            IList<List<string>> listOfAnagrams = new List<List<string>>();
 
-            while (workingDictionaryOfAllWords.Any())
+            while (totallyAllWordsInTheEnglishDictionary.Any())
             {
-                List<string> wordToAnalyze = workingDictionaryOfAllWords.Keys.FirstOrDefault()?.Select(c => c.ToString().ToLower()).ToList();
+                List<string> wordToAnalyze = totallyAllWordsInTheEnglishDictionary.FirstOrDefault()?.Select(c => c.ToString().ToLower()).ToList();
 
-                List<string> anagrams = FindAnagramsOfWord(workingDictionaryOfAllWords, wordToAnalyze);
+                List<string> anagrams = FindAnagramsOfWord(totallyAllWordsInTheEnglishDictionary, wordToAnalyze);
 
-                listOfAnagrams.Add(anagrams);
+                if (anagrams.Count > 1)
+                    listOfAnagrams.Add(anagrams);
                 foreach (string anagram in anagrams)
                 {
-                    KeyValuePair<string, List<string>> foundword = workingDictionaryOfAllWords.FirstOrDefault(kvp => kvp.Key == anagram);
-                    workingDictionaryOfAllWords.Remove(foundword.Key);
+                    totallyAllWordsInTheEnglishDictionary.Remove(anagram);
                 }
-                Console.WriteLine(string.Join("\t", anagrams.Cast<string>().ToArray()));
 
+                if (listOfAnagrams.Count % 1000 == 0)
+                    Console.WriteLine(listOfAnagrams.Count);
             }
 
-            foreach (List<string> anagram in listOfAnagrams)
-            {
-                Console.WriteLine(string.Join("\t", anagram.Cast<string>().ToArray()));
-            }
+            Console.WriteLine(listOfAnagrams.Count);
         }
 
-        private static List<string> FindAnagramsOfWord(Dictionary<string, List<string>> workingDictionaryOfAllWords, List<string> wordToAnalyze)
+        private static List<string> FindAnagramsOfWord(IEnumerable<string> workingListOfWords, ICollection<string> wordToAnalyze)
         {
-            List<string> remainingLetters = wordToAnalyze;
-            Dictionary<string, List<string>> remainingWords = workingDictionaryOfAllWords.Where(kvp => kvp.Key.Length == wordToAnalyze.Count).ToDictionary(x => x.Key, x => x.Value);
+            IEnumerable<string> remainingWords = workingListOfWords.Where(word => word.Length == wordToAnalyze.Count);
+            Dictionary<string, int> wordToAnalyzeCharToUsageCountDictionary = wordToAnalyze.GroupBy(c => c).ToDictionary(g => g.Key, g => g.Count());
 
-            while (remainingLetters.Any())
+            foreach (string letter in wordToAnalyze)
             {
-                string characterToLookFor = remainingLetters.First();
-
-                remainingWords = remainingWords
-                    .Where(kvp => kvp.Value.Contains(characterToLookFor.ToLower()) || kvp.Value.Contains(characterToLookFor.ToUpper()))
-                    .ToDictionary(x => x.Key, x =>
-                    {
-                        var index = x.Value.IndexOf(characterToLookFor);
-                        if (index > -1)
-                            x.Value.RemoveAt(index);
-                        index = x.Value.IndexOf(characterToLookFor.ToUpper());
-                        if (index > -1)
-                            x.Value.RemoveAt(index);
-                        return x.Value;
-                    });
-
-                remainingLetters.RemoveAt(0);
+                remainingWords = remainingWords.Where(word => word.ToLower().Contains(letter));
             }
 
 
-            return remainingWords.Keys.ToList();
+
+            //remainingWords = remainingWords.Where(word => !word.Select(c => c.ToString().ToLower()).ToList().Except(wordToAnalyze).Any());
+
+            if (remainingWords.Count() > 1)
+            {
+                remainingWords = remainingWords.Where(word =>
+                {
+                    Dictionary<string, int> keyWordCharToUsageCountDictionary = word.Select(c => c.ToString().ToLower()).ToList().GroupBy(c => c)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    foreach (KeyValuePair<string, int> character in wordToAnalyzeCharToUsageCountDictionary)
+                    {
+                        if (!keyWordCharToUsageCountDictionary.ContainsKey(character.Key))
+                            return false;
+                        if (keyWordCharToUsageCountDictionary[character.Key] != wordToAnalyzeCharToUsageCountDictionary[character.Key])
+                            return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            return remainingWords.ToList();
         }
     }
 }
